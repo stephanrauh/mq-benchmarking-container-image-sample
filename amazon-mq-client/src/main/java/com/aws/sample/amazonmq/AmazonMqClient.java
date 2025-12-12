@@ -95,6 +95,7 @@ public class AmazonMqClient {
 
     private static void sendMessages(Session session, MessageProducer queueMessageProducer, long ttl, String name, int interval, int deliveryMode, WrapInt count) throws JMSException {
         String destination = queueMessageProducer.getDestination().toString();
+        long lastLogTime = 0;
 
         while (true) {
             count.v++;
@@ -103,8 +104,14 @@ public class AmazonMqClient {
             message.setJMSMessageID(id);
             message.setJMSCorrelationID(id);
             queueMessageProducer.send(message, deliveryMode, 0, ttl);
-            if (interval > 0) {
+            
+            long currentTime = System.currentTimeMillis();
+            if (currentTime - lastLogTime >= 1000) {
                 System.out.println(String.format("%s - Sender: sent '%s'", df.format(new Date()), message.getText()));
+                lastLogTime = currentTime;
+            }
+            
+            if (interval > 0) {
                 try {
                     Thread.sleep(interval);
                 } catch (InterruptedException e) {
@@ -115,19 +122,24 @@ public class AmazonMqClient {
     }
 
     private static void receiveMessages(Session session, MessageConsumer consumer) throws JMSException {
+        final long[] lastLogTime = {0};
         consumer.setMessageListener(new MessageListener() {
             public void onMessage(Message message) {
                 try {
-                    if (message instanceof TextMessage) {
-                        TextMessage msg = (TextMessage) message;
-                        System.out.println(String.format("%s - Receiver: received '%s'", df.format(new Date()), msg.getText()));
-                    } else if (message instanceof BytesMessage) {
-                        BytesMessage msg = (BytesMessage) message;
-                        byte[] content = new byte[(int)msg.getBodyLength()];
-                        msg.readBytes(content);
-                        System.out.println(String.format("%s - Receiver: received '%s'", df.format(new Date()), new String(content)));
-                    } else {
-                        System.out.println(String.format("%s - Receiver: received '%s'", df.format(new Date()), message));
+                    long currentTime = System.currentTimeMillis();
+                    if (currentTime - lastLogTime[0] >= 1000) {
+                        if (message instanceof TextMessage) {
+                            TextMessage msg = (TextMessage) message;
+                            System.out.println(String.format("%s - Receiver: received '%s'", df.format(new Date()), msg.getText()));
+                        } else if (message instanceof BytesMessage) {
+                            BytesMessage msg = (BytesMessage) message;
+                            byte[] content = new byte[(int)msg.getBodyLength()];
+                            msg.readBytes(content);
+                            System.out.println(String.format("%s - Receiver: received '%s'", df.format(new Date()), new String(content)));
+                        } else {
+                            System.out.println(String.format("%s - Receiver: received '%s'", df.format(new Date()), message));
+                        }
+                        lastLogTime[0] = currentTime;
                     }
                     message.acknowledge();
                 } catch (JMSException e) {

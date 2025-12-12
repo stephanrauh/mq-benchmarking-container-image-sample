@@ -4,9 +4,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.aws.sample</groupId>
-        <artifactId>amazon-mq-workshop</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <groupId>local</groupId>
+        <artifactId>mq-benchmark</artifactId>
+        <version>1.0.0</version>
     </parent>
 
     <artifactId>amazon-mq-client</artifactId>
